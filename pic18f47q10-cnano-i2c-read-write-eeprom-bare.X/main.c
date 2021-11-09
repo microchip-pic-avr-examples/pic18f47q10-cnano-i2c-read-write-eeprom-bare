@@ -35,6 +35,8 @@
 #define PAGESIZE                        8
 #define TESTSIZE                        12
 
+uint8_t dataOperationSuccessful;
+
 
 static void CLK_Initialize(void);
 static void PPS_Initialize(void);
@@ -58,7 +60,7 @@ static uint8_t I2C1_writeNBytes_EEPROM(uint8_t address, uint8_t memory_address, 
 uint8_t I2C1_read1ByteRegister(uint8_t address, uint8_t reg);
 void I2C1_readNBytes(uint8_t address, uint8_t reg, uint8_t* data, uint8_t length);
 static uint8_t MIN(uint8_t x,uint8_t y);
-
+static uint8_t I2C1_operationSuccessful(void);
 
 void main(void)
 {
@@ -79,10 +81,18 @@ void main(void)
     }
     
     EEPROM_write_address = I2C1_writeNBytes_EEPROM(I2C_CLIENT_ADDR, EEPROM_write_address, dataWrite, TESTSIZE, PAGESIZE);
+    if (!I2C1_operationSuccessful())
+    {
+        /* Handle Error */
+    }
     
     while (1)
     {
         I2C1_readNBytes(I2C_CLIENT_ADDR, EEPROM_readback_address, dataRead, TESTSIZE);
+        if (!I2C1_operationSuccessful())
+        {
+            /* Handle Error */
+        }
         __delay_ms(5000);
 	}
 }
@@ -91,10 +101,10 @@ void main(void)
 
 static void CLK_Initialize(void)
 {
-    /* Set Oscilator Source: HFINTOSC and Set Clock Divider: 1 */
+    /* Set Oscillator Source: HFINTOSC and Set Clock Divider: 1 */
     OSCCON1bits.NOSC = 0x6;
 
-    /* Set Nominal Freq: 4 MHz */
+    /* Set Nominal frequency: 4 MHz */
     OSCFRQbits.FRQ1 = 1;
 }
 
@@ -129,7 +139,7 @@ static void I2C1_Initialize(void)
     /* I2C Master Mode: Clock = F_OSC / (4 * (SSP1ADD + 1)) */
     SSP1CON1bits.SSPM3 = 1;
     
-    /* Set the boud rate devider to obtain the I2C clock at 100000 Hz*/
+    /* Set the baud rate divider to obtain the I2C clock at 100000 Hz*/
     SSP1ADD  = 0x09;
 }
 
@@ -223,6 +233,7 @@ static void I2C1_write1ByteRegister(uint8_t address, uint8_t reg, uint8_t data)
 {
     /* Shift the 7 bit address and add a 0 bit to indicate write operation */
     uint8_t writeAddress = (address << 1) & ~I2C_RW_BIT;
+    dataOperationSuccessful = 1;
     
     I2C1_open();
     I2C1_startCondition();
@@ -230,19 +241,22 @@ static void I2C1_write1ByteRegister(uint8_t address, uint8_t reg, uint8_t data)
     I2C1_sendData(writeAddress);
     if (I2C1_getAckstatBit())
     {
-        return ;
+        /* Error occurred */
+        dataOperationSuccessful = 0;
     }
     
     I2C1_sendData(reg);
     if (I2C1_getAckstatBit())
     {
-        return ;
+        /* Error occurred */
+        dataOperationSuccessful = 0;
     }
     
     I2C1_sendData(data);
     if (I2C1_getAckstatBit())
     {
-        return ;
+        /* Error occurred */
+        dataOperationSuccessful = 0;
     }
     
     I2C1_stopCondition();
@@ -253,7 +267,7 @@ void I2C1_writeNBytes(uint8_t address, uint8_t reg, uint8_t* data, uint8_t lengt
 {
     /* Shift the 7-bit address and add a 0 bit to indicate a write operation */
     uint8_t writeAddress = (address << 1) & ~I2C_RW_BIT;
-    
+    dataOperationSuccessful = 1;
     I2C1_open();
     
     /* Write the address we want to read to the device */
@@ -262,13 +276,15 @@ void I2C1_writeNBytes(uint8_t address, uint8_t reg, uint8_t* data, uint8_t lengt
     I2C1_sendData(writeAddress);
     if (I2C1_getAckstatBit())
     {
-        return;
+        /* Error occurred */
+        dataOperationSuccessful = 0;
     }
     
     I2C1_sendData(reg);
     if (I2C1_getAckstatBit())
     {
-        return;
+        /* Error occurred */
+        dataOperationSuccessful = 0;
     }
     
     uint8_t i = 0;
@@ -277,7 +293,8 @@ void I2C1_writeNBytes(uint8_t address, uint8_t reg, uint8_t* data, uint8_t lengt
         I2C1_sendData(*data++);
         if (I2C1_getAckstatBit())
         {
-            return;
+            /* Error occurred */
+            dataOperationSuccessful = 0;
         }
         i++;
     }
@@ -330,6 +347,7 @@ uint8_t I2C1_read1ByteRegister(uint8_t address, uint8_t reg)
     uint8_t writeAddress = (address << 1) & ~I2C_RW_BIT;
     uint8_t readAddress = (address << 1) | I2C_RW_BIT;
     uint8_t dataRead;
+    dataOperationSuccessful = 1;
     
     I2C1_open();
     I2C1_startCondition();
@@ -337,13 +355,15 @@ uint8_t I2C1_read1ByteRegister(uint8_t address, uint8_t reg)
     I2C1_sendData(writeAddress);
     if (I2C1_getAckstatBit())
     {
-        return 0x0042;
+        /* Error occurred */
+        dataOperationSuccessful = 0;
     }
     
     I2C1_sendData(reg);
     if (I2C1_getAckstatBit())
     {
-        return 0x0042;
+        /* Error occurred */
+        dataOperationSuccessful = 0;
     }
 
     I2C1_startCondition();
@@ -352,7 +372,8 @@ uint8_t I2C1_read1ByteRegister(uint8_t address, uint8_t reg)
 
     if (I2C1_getAckstatBit())
     {
-        return 0x0042;
+        /* Error occurred */
+        dataOperationSuccessful = 0;
     }
     I2C1_setRecieveMode();
     
@@ -381,13 +402,15 @@ void I2C1_readNBytes(uint8_t address, uint8_t reg, uint8_t* data, uint8_t length
     I2C1_sendData(writeAddress);
     if (I2C1_getAckstatBit())
     {
-        return;
+        /* Error occurred */
+        dataOperationSuccessful = 0;
     }
     
     I2C1_sendData(reg);
     if (I2C1_getAckstatBit())
     {
-        return;
+        /* Error occurred */
+        dataOperationSuccessful = 0;
     }
  
     /* Start reading data*/
@@ -397,7 +420,8 @@ void I2C1_readNBytes(uint8_t address, uint8_t reg, uint8_t* data, uint8_t length
 
     if (I2C1_getAckstatBit())
     {
-        return;
+        /* Error occurred */
+        dataOperationSuccessful = 0;
     }
     
     uint8_t i = 0;
@@ -424,5 +448,10 @@ static uint8_t MIN(uint8_t x,uint8_t y)
 {
     if(x < y) return x;
     return y;
+}
+
+static uint8_t I2C1_operationSuccessful(void)
+{
+    return dataOperationSuccessful;
 }
 
