@@ -4,7 +4,7 @@
     "content": {
         "metaDataVersion": "1.3.0",
         "name": "com.microchip.mcu8.mplabx.project.pic18f47q10-cnano-i2c-read-write-eeprom-bare",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "displayName": "PIC18F47Q10 I2C Host Read and Write EEPROM",
         "projectName": "pic18f47q10-cnano-i2c-read-write-eeprom-bare",
         "shortDescription": "Bare metal code for I2C read and write operations to an external EEPROM using PIC18F47Q10 Curiosity Nano and the PICkit Serial I2C Demo Board",
